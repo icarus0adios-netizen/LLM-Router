@@ -1,0 +1,19 @@
+# llm-gateway 配置文件
+# 环境变量覆盖规则: PORT 覆盖 port
+
+port: 8080
+backends:
+  - id: "vllm-a100-1"
+    url: "http://localhost:9001"
+    model: "qwen2.5-72b"
+    gpu_type: "A100-80G"
+
+  - id: "vllm-a100-2"
+    url: "http://localhost:9002"
+    model: "qwen2.5-72b"
+    gpu_type: "A100-80G"
+
+  - id: "vllm-a10-1"
+    url: "http://localhost:9003"
+    model: "qwen2.5-7b"
+    gpu_type: "A10-24G"
