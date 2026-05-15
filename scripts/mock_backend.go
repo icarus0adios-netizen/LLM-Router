@@ -32,7 +32,7 @@ var (
 func init() {
 	flag.IntVar(&port, "port", 9001, "后端显卡端口")
 	flag.StringVar(&model, "model", "default-model", "后端模型")
-	flag.StringVar(&gpuType, "gpu_type", "unknown", "后端显卡类型")
+	flag.StringVar(&gpuType, "gpu-type", "unknown", "后端显卡类型")
 
 }
 

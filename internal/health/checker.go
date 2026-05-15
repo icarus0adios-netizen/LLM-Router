@@ -47,7 +47,7 @@ func NewChecker(cfg *config.Config, interval time.Duration) *Checker {
 func (c *Checker) checkOnce(backendID string) {
 	// 1. 获取 backend（读锁）
 	c.mu.RLock()
-	backend, exists := c.backends[backendID]
+	backend, exists := c.backends[backendID] //注意这里的 backend 是指针，后续的调用都是引用传递
 	c.mu.RUnlock()
 
 	if !exists {
@@ -97,7 +97,7 @@ func (c *Checker) checkAll() {
 	for id := range c.backends {
 		ids = append(ids, id)
 	}
-	c.mu.Unlock()
+	c.mu.RUnlock()
 
 	for _, backendID := range ids {
 		c.checkOnce(backendID)
@@ -125,12 +125,12 @@ func (c *Checker) Start(ctx context.Context) {
 }
 
 // States 获取所有后端的健康状态 (只返回快照)
-func (c *Checker) States() map[string]HealthState {
+func (c *Checker) States() map[string]string {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
-	states := make(map[string]HealthState)
+	states := make(map[string]string)
 	for _, backend := range c.backends {
-		states[backend.ID] = backend.State
+		states[backend.ID] = backend.State.String()
 	}
 	return states
 }
