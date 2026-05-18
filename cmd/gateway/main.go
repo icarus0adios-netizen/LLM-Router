@@ -3,7 +3,9 @@ package main
 import (
 	"context"
 	"log"
+	"time"
 
+	"github.com/icarus0adios-netizen/LLM-Router/internal/admission"
 	"github.com/icarus0adios-netizen/LLM-Router/internal/config"
 	"github.com/icarus0adios-netizen/LLM-Router/internal/server"
 )
@@ -18,7 +20,8 @@ func main() {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	srv := server.NewServer(cfg, ctx)
+	admissionCtrl := admission.NewController(10, time.Millisecond*10)
+	srv := server.NewServer(cfg, ctx, admissionCtrl)
 
 	if err := srv.Start(); err != nil {
 		log.Fatalf("启动server失败: %v\n", err)

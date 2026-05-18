@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/icarus0adios-netizen/LLM-Router/internal/admission"
 	"github.com/icarus0adios-netizen/LLM-Router/internal/config"
 	"github.com/icarus0adios-netizen/LLM-Router/internal/health"
 	"github.com/icarus0adios-netizen/LLM-Router/internal/proxy"
@@ -17,11 +18,12 @@ type Server struct {
 	config     *config.Config
 	httpServer *http.Server
 
-	checker *health.Checker
-	proxy   *proxy.Proxy
+	checker       *health.Checker
+	proxy         *proxy.Proxy
+	admissionCtrl *admission.Controller
 }
 
-func NewServer(cfg *config.Config, ctx context.Context) *Server {
+func NewServer(cfg *config.Config, ctx context.Context, admissionCtrl *admission.Controller) *Server {
 	mux := http.NewServeMux() //创建私有路由器
 	s := &Server{
 		config: cfg,
@@ -30,8 +32,9 @@ func NewServer(cfg *config.Config, ctx context.Context) *Server {
 			Handler: mux,
 			// 绑定到专用路由器
 		},
-		checker: health.NewChecker(cfg, time.Second*3),
-		proxy:   proxy.NewProxy(30 * time.Second),
+		checker:       health.NewChecker(cfg, time.Second*3),
+		proxy:         proxy.NewProxy(30 * time.Second),
+		admissionCtrl: admissionCtrl,
 	}
 	s.checker.Start(ctx)
 
@@ -53,6 +56,13 @@ func (s *Server) chatHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
 		return
 	}
+
+	// 申请信号量
+	if err := s.admissionCtrl.Acquire(r.Context()); err != nil {
+		http.Error(w, err.Error(), http.StatusTooManyRequests)
+		return
+	}
+	defer s.admissionCtrl.Release()
 
 	// Week 3 之前：硬编码选第一个 healthy 后端
 	// 今天：从 checker 拿健康后端列表，选第一个
