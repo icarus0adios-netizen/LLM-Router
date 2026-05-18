@@ -29,7 +29,7 @@ func (c *Controller) Acquire(ctx context.Context) error {
 	// 等待超时
 	//99% 以上的请求都是走的上面“尝试的路径”，所以将Newtikcer分割开来，
 	//避免： 即使 sem 有空位也要分配一次 time.After() 的 Timer ！！！！
-	timer := time.NewTicker(c.timeout)
+	timer := time.NewTimer(c.timeout)
 	defer timer.Stop()
 	select {
 	case <-ctx.Done():

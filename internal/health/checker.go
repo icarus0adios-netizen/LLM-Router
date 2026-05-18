@@ -134,3 +134,13 @@ func (c *Checker) States() map[string]string {
 	}
 	return states
 }
+
+func (c *Checker) Latencies() map[string]float64 {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	latencies := make(map[string]float64)
+	for _, backend := range c.backends {
+		latencies[backend.ID] = backend.LastLatency
+	}
+	return latencies
+}

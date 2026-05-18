@@ -6,12 +6,12 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"time"
 
 	"github.com/icarus0adios-netizen/LLM-Router/internal/admission"
 	"github.com/icarus0adios-netizen/LLM-Router/internal/config"
 	"github.com/icarus0adios-netizen/LLM-Router/internal/health"
 	"github.com/icarus0adios-netizen/LLM-Router/internal/proxy"
+	"github.com/icarus0adios-netizen/LLM-Router/internal/router"
 )
 
 type Server struct {
@@ -21,9 +21,20 @@ type Server struct {
 	checker       *health.Checker
 	proxy         *proxy.Proxy
 	admissionCtrl *admission.Controller
+	tracker       *router.RequestTracker
+	router        *router.Router
+	scorer        *router.Scorer
 }
 
-func NewServer(cfg *config.Config, ctx context.Context, admissionCtrl *admission.Controller) *Server {
+func NewServer(cfg *config.Config,
+	ctx context.Context,
+	admissionCtrl *admission.Controller,
+	checker *health.Checker,
+	proxy *proxy.Proxy,
+	tracker *router.RequestTracker,
+	router *router.Router,
+	scorer *router.Scorer,
+) *Server {
 	mux := http.NewServeMux() //创建私有路由器
 	s := &Server{
 		config: cfg,
@@ -32,9 +43,12 @@ func NewServer(cfg *config.Config, ctx context.Context, admissionCtrl *admission
 			Handler: mux,
 			// 绑定到专用路由器
 		},
-		checker:       health.NewChecker(cfg, time.Second*3),
-		proxy:         proxy.NewProxy(30 * time.Second),
+		checker:       checker,
+		proxy:         proxy,
 		admissionCtrl: admissionCtrl,
+		tracker:       tracker,
+		router:        router,
+		scorer:        scorer,
 	}
 	s.checker.Start(ctx)
 
@@ -64,13 +78,22 @@ func (s *Server) chatHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	defer s.admissionCtrl.Release()
 
-	// Week 3 之前：硬编码选第一个 healthy 后端
-	// 今天：从 checker 拿健康后端列表，选第一个
+	// Route() 内部完成 Filter→Score→Select + tracker.Inc(winnerID)，
+	// 保证并发请求的 Snapshot 能看到前一个请求已占用的负载。
+	// handler 只需负责 Dec，在请求完成时释放。
+	id, backendURL, err := s.router.Route()
+	if err != nil {
+		log.Printf("路由失败: %v", err)
+		http.Error(w, `{"error":"no available backend"}`, http.StatusServiceUnavailable)
+		return
+	}
 
-	//TODO : 下周用Router替换
-	backendURL := "http://localhost:9001"
+	defer s.tracker.Dec(id)
+
+	log.Printf("[route] 选中后端: %s (%s)", id, backendURL)
+
 	if err := s.proxy.Forward(r.Context(), w, backendURL, r.Body); err != nil {
-		log.Fatalf("代理转发失败：%v", err)
+		log.Printf("代理转发失败 (backend=%s): %v", backendURL, err)
 	}
 }
 

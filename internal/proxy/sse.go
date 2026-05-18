@@ -24,7 +24,11 @@ func NewProxy(internal time.Duration) *Proxy {
 func (p *Proxy) Forward(ctx context.Context, w http.ResponseWriter, backendURL string, body io.Reader) error {
 	//1-构建后端请求
 	targetURL := backendURL + "/v1/chat/completions"
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, targetURL, body)
+
+	backendCtx, cancel := context.WithTimeout(ctx, p.client.Timeout)
+	defer cancel()
+
+	req, err := http.NewRequestWithContext(backendCtx, http.MethodPost, targetURL, body)
 	if err != nil {
 		return fmt.Errorf("create backend request failed: %v", err)
 	}
