@@ -10,6 +10,7 @@ import (
 
 	"github.com/icarus0adios-netizen/LLM-Router/internal/config"
 	"github.com/icarus0adios-netizen/LLM-Router/internal/health"
+	"github.com/icarus0adios-netizen/LLM-Router/internal/metrics"
 )
 
 // Router 执行 Filter→Score→Select 路由决策。
@@ -100,6 +101,9 @@ func (r *Router) Route() (string, string, error) { //Backend ID , URL ,Error
 			targetScore = score
 		}
 	}
+
+	//记录metrics 后端score
+	metrics.RecordRouterScore(targetID, targetScore)
 
 	r.tracker.Inc(targetID)
 	return targetID, backends[targetID].URL, nil

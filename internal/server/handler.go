@@ -6,12 +6,16 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"time"
 
 	"github.com/icarus0adios-netizen/LLM-Router/internal/admission"
 	"github.com/icarus0adios-netizen/LLM-Router/internal/config"
 	"github.com/icarus0adios-netizen/LLM-Router/internal/health"
+	"github.com/icarus0adios-netizen/LLM-Router/internal/metrics"
 	"github.com/icarus0adios-netizen/LLM-Router/internal/proxy"
 	"github.com/icarus0adios-netizen/LLM-Router/internal/router"
+
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 type Server struct {
@@ -54,6 +58,7 @@ func NewServer(cfg *config.Config,
 
 	mux.HandleFunc("/health", s.healthHandler) //在专有路由器上注册！！
 	mux.HandleFunc("/v1/chat/completions", s.chatHandler)
+	mux.Handle("/metrics", promhttp.Handler())
 	return s
 }
 
@@ -71,8 +76,13 @@ func (s *Server) chatHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// 记录请求开始时间
+	start := time.Now()
+
 	// 申请信号量
 	if err := s.admissionCtrl.Acquire(r.Context()); err != nil {
+		metrics.RecordError("admission_rejected")
+		metrics.RecordRequest("", http.StatusTooManyRequests, time.Since(start).Seconds())
 		http.Error(w, err.Error(), http.StatusTooManyRequests)
 		return
 	}
@@ -83,18 +93,30 @@ func (s *Server) chatHandler(w http.ResponseWriter, r *http.Request) {
 	// handler 只需负责 Dec，在请求完成时释放。
 	id, backendURL, err := s.router.Route()
 	if err != nil {
+		metrics.RecordRequest("", http.StatusServiceUnavailable, time.Since(start).Seconds())
+		metrics.RecordError("no_backend")
 		log.Printf("路由失败: %v", err)
 		http.Error(w, `{"error":"no available backend"}`, http.StatusServiceUnavailable)
 		return
 	}
+	defer s.tracker.Dec(id) //！！！！！
 
-	defer s.tracker.Dec(id)
+	// 更新 Prometheus gauge
+	load := s.tracker.Snapshot()
+	for backendID, count := range load {
+		metrics.SetBackendActiveRequests(backendID, float64(count.Active))
+	}
 
 	log.Printf("[route] 选中后端: %s (%s)", id, backendURL)
 
 	if err := s.proxy.Forward(r.Context(), w, backendURL, r.Body); err != nil {
+		metrics.RecordError("backend_error")
+		metrics.RecordRequest(id, http.StatusBadGateway, time.Since(start).Seconds())
 		log.Printf("代理转发失败 (backend=%s): %v", backendURL, err)
+		return
 	}
+
+	metrics.RecordRequest(id, http.StatusOK, time.Since(start).Seconds())
 }
 
 // Start 启动server

@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/icarus0adios-netizen/LLM-Router/internal/config"
+	"github.com/icarus0adios-netizen/LLM-Router/internal/metrics"
 )
 
 type Checker struct {
@@ -71,6 +72,7 @@ func (c *Checker) checkOnce(backendID string) {
 		backend.State, backend.ConsecutiveSuccess, backend.ConsecutiveFail, _ = TransitionState(
 			backend.State, backend.ConsecutiveSuccess, backend.ConsecutiveFail, false,
 		)
+		metrics.SetBackendHealth(backendID, float64(backend.State))
 		return
 	}
 	defer resp.Body.Close()
@@ -86,6 +88,7 @@ func (c *Checker) checkOnce(backendID string) {
 			backend.State, backend.ConsecutiveSuccess, backend.ConsecutiveFail, true,
 		)
 	}
+	metrics.SetBackendHealth(backendID, float64(backend.State))
 }
 
 func (c *Checker) checkAll() {
