@@ -31,7 +31,6 @@ type Server struct {
 }
 
 func NewServer(cfg *config.Config,
-	ctx context.Context,
 	admissionCtrl *admission.Controller,
 	checker *health.Checker,
 	proxy *proxy.Proxy,
@@ -54,7 +53,6 @@ func NewServer(cfg *config.Config,
 		router:        router,
 		scorer:        scorer,
 	}
-	s.checker.Start(ctx)
 
 	mux.HandleFunc("/health", s.healthHandler) //在专有路由器上注册！！
 	mux.HandleFunc("/v1/chat/completions", s.chatHandler)
@@ -125,7 +123,6 @@ func (s *Server) Start() error {
 }
 
 // 使用 conetxt 优雅关闭server
-// TODO  ： Week 4 才会用到，暂时只写一个骨架
 func (s *Server) Shutdown(ctx context.Context) error {
 	return s.httpServer.Shutdown(ctx)
 }

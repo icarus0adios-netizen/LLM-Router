@@ -15,7 +15,8 @@ type Checker struct {
 	interval time.Duration             // 检查间隔
 	client   *http.Client              // HTTP 客户端(复用连接，不重复创建)
 
-	mu sync.RWMutex // 读写锁
+	mu     sync.RWMutex       // 读写锁
+	cancel context.CancelFunc // 取消检查器的上下文
 }
 
 // NewChecker 初始化健康检查器
@@ -109,6 +110,7 @@ func (c *Checker) checkAll() {
 
 // Start 启动后台 goroutine，定时执行 checkAll 方法
 func (c *Checker) Start(ctx context.Context) {
+	ctx, c.cancel = context.WithCancel(ctx)
 	go func() {
 		ticker := time.NewTicker(c.interval)
 		defer ticker.Stop()
@@ -146,4 +148,10 @@ func (c *Checker) Latencies() map[string]float64 {
 		latencies[backend.ID] = backend.LastLatency
 	}
 	return latencies
+}
+
+func (c *Checker) Stop() {
+	if c.cancel != nil {
+		c.cancel()
+	}
 }
