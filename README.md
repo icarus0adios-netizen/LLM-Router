@@ -1,4 +1,4 @@
-# LLM Inference Gateway
+# LLM Router
 
 一个高性能 LLM 推理网关，实现**多维度加权路由**、**SSE 流式代理**、**三态健康状态机**、**并发准入控制**和 **Prometheus 可观测性**。
 
