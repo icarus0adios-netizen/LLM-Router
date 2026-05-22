@@ -17,3 +17,5 @@ backends:
     url: "http://localhost:9003"
     model: "qwen2.5-7b"
     gpu_type: "A10-24G"
+
+routing_strategy: "weighted"
