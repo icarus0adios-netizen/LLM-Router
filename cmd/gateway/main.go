@@ -27,7 +27,15 @@ func main() {
 	checker := health.NewChecker(cfg, 3*time.Second)
 	tracker := router.NewRequestTracker(cfg.Backends)
 	scorer := router.NewScorer()
-	rtr := router.NewRouter(checker, tracker, scorer, cfg.Backends)
+	//rtr := router.NewRouter(checker, tracker, scorer, cfg.Backends)
+
+	var rtr router.RouteSelector
+	if cfg.RoutingStrategy == "round_robin" {
+		rtr = router.NewRoundRobinRouter(checker, tracker, cfg.Backends)
+	} else {
+		rtr = router.NewRouter(checker, tracker, scorer, cfg.Backends)
+	}
+
 	proxy := proxy.NewProxy(30 * time.Second)
 
 	srv := server.NewServer(cfg, admissionCtrl, checker, proxy, tracker, rtr, scorer)

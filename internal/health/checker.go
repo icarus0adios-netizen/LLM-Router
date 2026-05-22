@@ -110,6 +110,7 @@ func (c *Checker) checkAll() {
 
 // Start 启动后台 goroutine，定时执行 checkAll 方法
 func (c *Checker) Start(ctx context.Context) {
+	//将 cancel func 传递给 Checker 的成员变量，用于在 Stop 方法中调用！！！！！
 	ctx, c.cancel = context.WithCancel(ctx)
 	go func() {
 		ticker := time.NewTicker(c.interval)
@@ -120,6 +121,7 @@ func (c *Checker) Start(ctx context.Context) {
 
 		for {
 			select {
+			// 监听上下文取消信号
 			case <-ctx.Done():
 				return
 			case <-ticker.C:

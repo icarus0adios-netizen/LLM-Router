@@ -113,8 +113,16 @@ func chatHandler(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintf(w, "data: %s\n\n", data)
 		flush.Flush()
 
-		// 模拟模型处理时间 50-100ms
-		time.Sleep(time.Duration(50+rand.Intn(50)) * time.Millisecond)
+		switch gpuType {
+		case "A100-80G":
+			time.Sleep(time.Duration(10+rand.Intn(20)) * time.Millisecond)
+		case "A100-40G":
+			time.Sleep(time.Duration(15+rand.Intn(25)) * time.Millisecond)
+		case "A10-24G":
+			time.Sleep(time.Duration(80+rand.Intn(70)) * time.Millisecond)
+		default:
+			time.Sleep(time.Duration(30+rand.Intn(30)) * time.Millisecond)
+		}
 	}
 
 	//满足 SSE 规范，发送 [DONE] 事件通知客户端处理完成

@@ -26,7 +26,7 @@ type Server struct {
 	proxy         *proxy.Proxy
 	admissionCtrl *admission.Controller
 	tracker       *router.RequestTracker
-	router        *router.Router
+	router        router.RouteSelector
 	scorer        *router.Scorer
 }
 
@@ -35,7 +35,7 @@ func NewServer(cfg *config.Config,
 	checker *health.Checker,
 	proxy *proxy.Proxy,
 	tracker *router.RequestTracker,
-	router *router.Router,
+	router router.RouteSelector,
 	scorer *router.Scorer,
 ) *Server {
 	mux := http.NewServeMux() //创建私有路由器

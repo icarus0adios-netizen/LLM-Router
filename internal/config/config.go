@@ -24,8 +24,9 @@ backends:
 */
 
 type Config struct {
-	Port     int             `yaml:"port"`
-	Backends []BackendConfig `yaml:"backends"`
+	Port             int             `yaml:"port"`
+	Backends         []BackendConfig `yaml:"backends"`
+	RoutingStrategy  string          `yaml:"routing_strategy"`
 }
 
 type BackendConfig struct {
